@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Support.UI;
+using Newtonsoft.Json;
+using System.IO;
+
+class Program
+{
+    static void Main()
+    {
+        Console.Write("Voer een zoekterm in voor het scrapen van Amazon-producten: ");
+        string zoekterm = Console.ReadLine();
+
+        List<ProductData> productDataList = ScrapeAmazon(zoekterm, 5);
+
+        // Print de resultaten naar de console
+        PrintResults(productDataList);
+
+        Console.WriteLine($"Scraping voltooid!");
+    }
+
+    static List<ProductData> ScrapeAmazon(string zoekterm, int numberOfProducts)
+    {
+        // Initialisatie van de Selenium-webdriver met een implicit wait
+        using (IWebDriver driver = new ChromeDriver())
+        {
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+
+            // Navigeer naar de Amazon-zoekpagina
+            driver.Navigate().GoToUrl($"https://www.amazon.com/s?k={zoekterm}");
+
+            // Zoek de productelementen op de pagina
+            IReadOnlyCollection<IWebElement> productElements = driver.FindElements(By.CssSelector(".s-result-item"));
+
+            List<ProductData> productDataList = new List<ProductData>();
+
+            // Loop door de productelementen en haal de nodige gegevens op
+            int count = 0;
+            foreach (IWebElement productElement in productElements)
+            {
+                // Refine the selector for the title element
+                IWebElement titleElement = null;
+                try
+                {
+                    titleElement = productElement.FindElement(By.CssSelector("h2 a span"));
+                }
+                catch (NoSuchElementException)
+                {
+                    // Handle the case where the title element is not found
+                    Console.WriteLine("Titel niet gevonden voor dit product.");
+                }
+
+                if (titleElement != null)
+                {
+                    ProductData productData = new ProductData
+                    {
+                        Title = titleElement.Text,
+                        Price = productElement.FindElement(By.CssSelector(".a-offscreen")).Text,
+                        Link = productElement.FindElement(By.CssSelector("a")).GetAttribute("href")
+                    };
+
+                    productDataList.Add(productData);
+
+                    // Print de resultaten naar de console tijdens het scrapen
+                    PrintResult(productData);
+
+                    count++;
+
+                    // Stop de lus als het gewenste aantal producten is bereikt
+                    if (count >= numberOfProducts)
+                        break;
+                }
+            }
+
+            return productDataList;
+        }
+    }
+
+    // Print een enkele ProductData naar de console
+    static void PrintResult(ProductData productData)
+    {
+        Console.WriteLine($"Titel: {productData.Title}");
+        Console.WriteLine($"Prijs: {productData.Price}");
+        Console.WriteLine($"Link: {productData.Link}");
+        Console.WriteLine("----------------------------------------------");
+    }
+
+    // Print de resultatenlijst naar de console
+    static void PrintResults(List<ProductData> productDataList)
+    {
+        Console.WriteLine("Eerste 5 gescrapete resultaten:");
+        Console.WriteLine("----------------------------------------------");
+
+        for (int i = 0; i < Math.Min(productDataList.Count, 5); i++)
+        {
+            PrintResult(productDataList[i]);
+        }
+    }
+}
+
+class ProductData
+{
+    public string Title { get; set; }
+    public string Price { get; set; }
+    public string Link { get; set; }
+}
