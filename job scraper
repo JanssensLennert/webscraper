@@ -1,0 +1,71 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+
+class Program
+{
+    static void Main()
+    {
+        Console.Write("Voer de zoekterm in: ");
+        string zoekterm = Console.ReadLine();
+
+        // Start de Chrome-browser
+        using (IWebDriver driver = new ChromeDriver())
+        {
+            // Ga naar de ICTJob-website
+            driver.Navigate().GoToUrl("https://www.ictjob.be/");
+
+            // Vul het zoekveld in met de opgegeven zoekterm
+            IWebElement zoekVeld = driver.FindElement(By.CssSelector("input[name='keywords']"));
+            zoekVeld.SendKeys(zoekterm);
+            zoekVeld.SendKeys(Keys.Enter);
+
+            // Wacht tot de resultaten geladen zijn (je kunt dit aanpassen op basis van de website)
+            System.Threading.Thread.Sleep(3000);
+
+            // Maak een lijst om de gegevens op te slaan
+            List<JobData> jobDataList = new List<JobData>();
+
+            // Haal de gegevens op van de 5 nieuwste jobs
+            for (int i = 1; i <= 5; i++)
+            {
+                string titel = driver.FindElement(By.CssSelector($".job-list .job:nth-child({i}) h2")).Text;
+                string bedrijf = driver.FindElement(By.CssSelector($".job-list .job:nth-child({i}) .company")).Text;
+                string locatie = driver.FindElement(By.CssSelector($".job-list .job:nth-child({i}) .location")).Text;
+                string keywords = driver.FindElement(By.CssSelector($".job-list .job:nth-child({i}) .job-keywords")).Text;
+                string link = driver.FindElement(By.CssSelector($".job-list .job:nth-child({i}) a")).GetAttribute("href");
+
+                // Voeg de gegevens toe aan de lijst
+                jobDataList.Add(new JobData
+                {
+                    Titel = titel,
+                    Bedrijf = bedrijf,
+                    Locatie = locatie,
+                    Keywords = keywords,
+                    Link = link
+                });
+            }
+
+            // Converteer de lijst naar JSON
+            string json = JsonConvert.SerializeObject(jobDataList, Formatting.Indented);
+
+            // Schrijf de JSON naar een bestand
+            File.WriteAllText("jobs.json", json);
+
+            Console.WriteLine("Gegevens zijn opgeslagen in jobs.json");
+        }
+    }
+}
+
+// Definieer een klasse voor het opslaan van jobgegevens
+class JobData
+{
+    public string Titel { get; set; }
+    public string Bedrijf { get; set; }
+    public string Locatie { get; set; }
+    public string Keywords { get; set; }
+    public string Link { get; set; }
+}
